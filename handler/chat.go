@@ -36,7 +36,6 @@ func (h *ChatHandler) ChatCompletions(c *echo.Context) error {
 	}
 
 	// Format messages into a simple prompt template
-	// In a real scenario, you'd use a specific chat template like ChatML
 	var promptBuilder strings.Builder
 	for _, msg := range req.Messages {
 		promptBuilder.WriteString(msg.Role + ": " + msg.Content + "\n")
@@ -46,54 +45,36 @@ func (h *ChatHandler) ChatCompletions(c *echo.Context) error {
 	prompt := promptBuilder.String()
 
 	if req.Stream {
-		tokenChan, errChan, err := h.Engine.GenerateStream(c.Request().Context(), prompt, req.MaxTokens)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate completion stream: " + err.Error()})
-		}
+		return h.handleStreaming(c, req, prompt)
+	}
 
-		c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
-		c.Response().Header().Set("Cache-Control", "no-cache")
-		c.Response().Header().Set("Connection", "keep-alive")
+	return h.handleNonStreaming(c, req, prompt)
+}
 
-		id := "chatcmpl-" + uuid.New().String()
-		created := time.Now().Unix()
+func (h *ChatHandler) handleStreaming(c *echo.Context, req model.ChatCompletionRequest, prompt string) error {
+	tokenChan, errChan, err := h.Engine.GenerateStream(c.Request().Context(), prompt, req.MaxTokens)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate completion stream: " + err.Error()})
+	}
 
-		for {
-			select {
-			case <-c.Request().Context().Done():
-				return nil
-			case err, ok := <-errChan:
-				if ok && err != nil {
-					// We can't really change the HTTP status code now, but we can send an error message
-					return err
-				}
-			case token, ok := <-tokenChan:
-				if !ok {
-					// Stream finished
-					stopReason := "stop"
-					chunk := model.ChatCompletionChunkResponse{
-						ID:      id,
-						Object:  "chat.completion.chunk",
-						Created: created,
-						Model:   req.Model,
-						Choices: []model.ChunkChoice{
-							{
-								Index:        0,
-								Delta:        model.ChunkDelta{},
-								FinishReason: &stopReason,
-							},
-						},
-					}
-					if err := streamChunk(c, chunk); err != nil {
-						return err
-					}
-					c.Response().Write([]byte("data: [DONE]\n\n"))
-					if flusher, ok := c.Response().(http.Flusher); ok {
-						flusher.Flush()
-					}
-					return nil
-				}
+	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
+	c.Response().Header().Set("Cache-Control", "no-cache")
+	c.Response().Header().Set("Connection", "keep-alive")
 
+	id := "chatcmpl-" + uuid.New().String()
+	created := time.Now().Unix()
+
+	for {
+		select {
+		case <-c.Request().Context().Done():
+			return nil
+		case err, ok := <-errChan:
+			if ok && err != nil {
+				return err
+			}
+		case token, ok := <-tokenChan:
+			if !ok {
+				stopReason := "stop"
 				chunk := model.ChatCompletionChunkResponse{
 					ID:      id,
 					Object:  "chat.completion.chunk",
@@ -101,21 +82,44 @@ func (h *ChatHandler) ChatCompletions(c *echo.Context) error {
 					Model:   req.Model,
 					Choices: []model.ChunkChoice{
 						{
-							Index: 0,
-							Delta: model.ChunkDelta{
-								Content: token,
-							},
+							Index:        0,
+							Delta:        model.ChunkDelta{},
+							FinishReason: &stopReason,
 						},
 					},
 				}
 				if err := streamChunk(c, chunk); err != nil {
 					return err
 				}
+				c.Response().Write([]byte("data: [DONE]\n\n"))
+				if flusher, ok := c.Response().(http.Flusher); ok {
+					flusher.Flush()
+				}
+				return nil
+			}
+
+			chunk := model.ChatCompletionChunkResponse{
+				ID:      id,
+				Object:  "chat.completion.chunk",
+				Created: created,
+				Model:   req.Model,
+				Choices: []model.ChunkChoice{
+					{
+						Index: 0,
+						Delta: model.ChunkDelta{
+							Content: token,
+						},
+					},
+				},
+			}
+			if err := streamChunk(c, chunk); err != nil {
+				return err
 			}
 		}
 	}
+}
 
-	// Non-streaming
+func (h *ChatHandler) handleNonStreaming(c *echo.Context, req model.ChatCompletionRequest, prompt string) error {
 	var output string
 	var err error
 	maxRetries := 3
