@@ -8,10 +8,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/siherrmann/talker/core"
 	"github.com/siherrmann/talker/model"
+	"github.com/siherrmann/validator"
 )
 
-func (h *TalkerHandler) ChatCompletions(c *echo.Context) error {
+type ChatHandler struct {
+	Engine    core.Engine
+	validator *validator.Validator
+}
+
+func NewChatHandler(engine core.Engine) *ChatHandler {
+	return &ChatHandler{
+		Engine:    engine,
+		validator: validator.NewValidator(),
+	}
+}
+
+func (h *ChatHandler) ChatCompletions(c *echo.Context) error {
 	var req model.ChatCompletionRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request payload"})
@@ -30,7 +44,7 @@ func (h *TalkerHandler) ChatCompletions(c *echo.Context) error {
 	promptBuilder.WriteString("assistant: ")
 
 	prompt := promptBuilder.String()
-	
+
 	if req.Stream {
 		tokenChan, errChan, err := h.Engine.GenerateStream(c.Request().Context(), prompt, req.MaxTokens)
 		if err != nil {
@@ -79,7 +93,7 @@ func (h *TalkerHandler) ChatCompletions(c *echo.Context) error {
 					}
 					return nil
 				}
-				
+
 				chunk := model.ChatCompletionChunkResponse{
 					ID:      id,
 					Object:  "chat.completion.chunk",
@@ -102,9 +116,34 @@ func (h *TalkerHandler) ChatCompletions(c *echo.Context) error {
 	}
 
 	// Non-streaming
-	output, err := h.Engine.Generate(c.Request().Context(), prompt, req.MaxTokens)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate completion: " + err.Error()})
+	var output string
+	var err error
+	maxRetries := 3
+
+	if req.ResponseFormat != nil && req.ResponseFormat.Type == "json_object" {
+		currentPrompt := prompt
+		for i := 0; i < maxRetries; i++ {
+			output, err = h.Engine.Generate(c.Request().Context(), currentPrompt, req.MaxTokens)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate completion: " + err.Error()})
+			}
+
+			err = core.ValidateJSON(output, h.validator)
+			if err == nil {
+				break
+			}
+
+			if i == maxRetries-1 {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate valid JSON after multiple attempts: " + err.Error()})
+			}
+
+			currentPrompt += output + "\nThe JSON you provided was invalid. Error: " + err.Error() + ". Please try again and provide ONLY valid JSON.\nassistant: "
+		}
+	} else {
+		output, err = h.Engine.Generate(c.Request().Context(), prompt, req.MaxTokens)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate completion: " + err.Error()})
+		}
 	}
 
 	promptTokens := len(strings.Fields(prompt))

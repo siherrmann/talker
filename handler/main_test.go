@@ -6,19 +6,22 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v5"
-	"github.com/siherrmann/talker/llm"
+	"github.com/siherrmann/talker/core"
 )
 
 var e *echo.Echo
-var mockEngine *llm.MockEngine
-var testHandler *TalkerHandler
+var mockEngine *core.MockEngine
+var chatHandler *ChatHandler
+var embeddingsHandler *EmbeddingsHandler
 
 func TestMain(m *testing.M) {
-	mockEngine = &llm.MockEngine{}
-	testHandler = NewTalkerHandler(mockEngine)
-	
+	mockEngine = &core.MockEngine{}
+	chatHandler = NewChatHandler(mockEngine)
+	embeddingsHandler = NewEmbeddingsHandler(mockEngine)
+
 	e = echo.New()
-	testHandler.RegisterRoutes(e)
+	e.POST("/v1/chat/completions", chatHandler.ChatCompletions)
+	e.POST("/v1/embeddings", embeddingsHandler.Embeddings)
 
 	exitCode := m.Run()
 

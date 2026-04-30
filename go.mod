@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/knights-analytics/hugot v0.7.2
 	github.com/labstack/echo/v5 v5.1.0
+	github.com/siherrmann/validator v0.25.0
 	github.com/stretchr/testify v1.11.1
 )
 

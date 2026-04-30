@@ -9,7 +9,7 @@ A fast, OpenAI-compatible Chat Completion API wrapping local LLM inference using
 
 ## 💡 Goal of this project
 
-talker provides a lightweight, entirely local backend that mimics the OpenAI Chat Completion API (`POST /v1/chat/completions`). It enables you to point your existing OpenAI-compatible AI applications directly to a local, privacy-preserving server running ONNX-based language models without needing complex Python setups.
+talker provides a lightweight, entirely local backend that mimics the OpenAI Chat Completion API (`POST /v1/chat/completions`) and Embeddings API (`POST /v1/embeddings`). It enables you to point your existing OpenAI-compatible AI applications directly to a local, privacy-preserving server running ONNX-based language models without needing complex Python setups.
 
 ---
 
@@ -26,7 +26,7 @@ go mod tidy
 The server requires:
 
 - Go 1.25+
-- An ONNX-formatted language model
+- ONNX-formatted language or embedding models (which can be downloaded automatically!)
 
 ---
 
@@ -34,16 +34,16 @@ The server requires:
 
 ### Basic Usage
 
-The simplest way to start the API for testing is by using the built-in mock engine. If no model path is specified, the server will default to the mock engine, allowing you to test endpoints immediately.
+The simplest way to start the API for testing is by using the built-in mock engine. If no model parameters are specified, the server will default to the mock engine, allowing you to test endpoints immediately.
 
 ```bash
 go run main.go
 ```
 
-To run with a real LLM model for inference:
+To run with real models and have them download automatically if they are missing:
 
 ```bash
-MODEL_PATH=/path/to/your/model.onnx PORT=8080 go run main.go
+MODEL_FOLDER=./models CHAT_MODEL=HuggingFaceTB/SmolLM-135M-Instruct EMBEDDING_MODEL=BAAI/bge-small-en-v1.5 PORT=8080 go run main.go
 ```
 
 ### Environment Variables
@@ -51,9 +51,13 @@ MODEL_PATH=/path/to/your/model.onnx PORT=8080 go run main.go
 The API behavior can be configured via environment variables:
 
 ```shell
-MODEL_PATH=/path/to/model.onnx # Optional: Sets the ONNX model directory. If empty, MockEngine is used.
-PORT=8080                      # Optional: Sets the port for the Echo server (default is 8080).
+MODEL_FOLDER=./models                        # Required for auto-download: The base directory to store models.
+CHAT_MODEL=HuggingFaceTB/SmolLM-135M-Instruct # Optional: The Hugging Face repo name for the text generation model.
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5        # Optional: The Hugging Face repo name for the embeddings model.
+PORT=8080                                    # Optional: Sets the port for the Echo server (default is 8080).
 ```
+
+If neither `CHAT_MODEL` nor `EMBEDDING_MODEL` is provided, the mock engine is used.
 
 ---
 
@@ -62,30 +66,30 @@ PORT=8080                      # Optional: Sets the port for the Echo server (de
 ### Local LLM Inference
 
 - **hugot Integration**: Native Go inference using the high-performance `hugot` library (which wraps ONNX runtime).
-- **Direct Downloads**: Includes wrappers to easily download models directly from the Hugging Face Hub.
+- **Automatic Downloading**: Automatically downloads the requested models from Hugging Face directly into your `MODEL_FOLDER` on startup.
 
 ### OpenAI Compatibility
 
-- **Standard Endpoints**: Provides a strict implementation of the `POST /v1/chat/completions` endpoint.
-- **Request/Response Models**: Fully conforms to the standard OpenAI request (messages, temperature, max_tokens, etc.) and response structures.
-- **SSE Streaming**: Fully supports Server-Sent Events for real-time streaming when `stream: true` is passed. 
+- **Standard Endpoints**: Strict implementation of both `POST /v1/chat/completions` and `POST /v1/embeddings`.
+- **Request/Response Models**: Fully conforms to the standard OpenAI request and response schemas.
+- **SSE Streaming**: Fully supports Server-Sent Events for real-time streaming when `stream: true` is passed.
+- **Strict JSON Enforcement**: Supports `response_format: {"type": "json_object"}` with automatic struct validation via `github.com/siherrmann/validator`. If the LLM generates invalid JSON, the engine automatically retries up to 3 times, passing the validation errors back to the model as a prompt.
 
 ### Robust Architecture
 
 - **Echo v5 Framework**: Built on top of Echo for rapid and robust HTTP routing.
-- **Test-Driven**: Designed with a highly mockable architecture heavily mirroring the `queuerManager` style, including extensive unit tests.
+- **Test-Driven**: Designed with a highly mockable architecture.
 
 ---
 
 ## 🖥️ API Interface
 
-The server provides a single, OpenAI-compatible completion endpoint.
-
 ### API Endpoints
 
 - **`POST /v1/chat/completions`** - Generates chat completions.
+- **`POST /v1/embeddings`** - Generates vector embeddings for a given input.
 
-Example request (Non-streaming):
+Example request (Non-streaming Chat):
 
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
@@ -99,15 +103,14 @@ curl -X POST http://localhost:8080/v1/chat/completions \
   }'
 ```
 
-Example request (Streaming):
+Example request (Embeddings):
 
 ```bash
-curl -X POST http://localhost:8080/v1/chat/completions \
+curl -X POST http://localhost:8080/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "local-model",
-    "messages": [{"role": "user", "content": "Tell me a joke."}],
-    "stream": true
+    "model": "local-embedding-model",
+    "input": ["First sentence", "Second sentence"]
   }'
 ```
 
@@ -122,9 +125,9 @@ talker is built with:
 
 The application follows a clean architecture with:
 
-- **Handlers**: The Echo `TalkerHandler` handles HTTP lifecycle and parses OpenAI JSON structures.
-- **LLM Engine**: A mockable `Engine` interface that abstracts underlying `hugot` pipeline calls (`HugotEngine`), generating either static string responses or continuous token streams.
-- **Models**: Native Go structs matching the exact schema required by client libraries expecting an OpenAI backend.
+- **Handlers (`handler/`)**: Contains `ChatHandler` and `EmbeddingsHandler` for the HTTP lifecycle.
+- **Core Engine (`core/`)**: Abstracts underlying `hugot` pipeline calls (`HugotEngine`). It seamlessly supports `TextGenerationPipeline` and `FeatureExtractionPipeline` concurrently.
+- **Models (`model/`)**: Native Go structs matching the exact schema required by client libraries expecting an OpenAI backend. Includes custom unmarshaling logic for robust handling of dynamic OpenAI fields (e.g., embeddings input as string vs array).
 
 ---
 
