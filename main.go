@@ -10,7 +10,7 @@ import (
 	"github.com/siherrmann/talker/handler"
 )
 
-func main() {
+func run() error {
 	// 1. Initialize the Engine
 	modelFolder := os.Getenv("MODEL_FOLDER")
 	speechModel := os.Getenv("CHAT_MODEL")
@@ -26,8 +26,7 @@ func main() {
 		slog.Info("Initializing Hugot engine", "speech_model", speechModel, "embedding_model", embeddingModel, "folder", modelFolder)
 		engine, err = core.NewHugotEngine(modelFolder, speechModel, embeddingModel)
 		if err != nil {
-			slog.Error("Failed to initialize Hugot Engine", "error", err)
-			os.Exit(1)
+			return err
 		}
 	}
 	defer engine.Close()
@@ -53,7 +52,11 @@ func main() {
 	}
 
 	slog.Info("Starting Talker API", "port", port)
-	if err := e.Start(":" + port); err != nil {
+	return e.Start(":" + port)
+}
+
+func main() {
+	if err := run(); err != nil {
 		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

@@ -110,4 +110,33 @@ func TestChatCompletions(t *testing.T) {
 		assert.NotEmpty(t, resp.ID)
 		assert.Equal(t, `{"summary": "This is a long enough summary.", "topics": ["test"]}`, resp.Choices[0].Message.Content)
 	})
+
+	t.Run("Streaming", func(t *testing.T) {
+		reqBody := model.ChatCompletionRequest{
+			Model: "test-model",
+			Messages: []model.ChatMessage{
+				{Role: "user", Content: "Stream this"},
+			},
+			Stream:    true,
+			MaxTokens: 50,
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "text/event-stream", rec.Header().Get("Content-Type"))
+
+		// Ensure we have some streaming output
+		body := rec.Body.String()
+		assert.Contains(t, body, "data: {")
+		assert.Contains(t, body, "chat.completion.chunk")
+		assert.Contains(t, body, "data: [DONE]")
+	})
 }
