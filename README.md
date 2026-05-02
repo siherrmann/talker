@@ -1,6 +1,7 @@
 # talker
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/siherrmann/talker.svg)](https://pkg.go.dev/github.com/siherrmann/talker)
+[![Go Coverage](https://github.com/siherrmann/talker/wiki/coverage.svg)](https://raw.githack.com/wiki/siherrmann/talker/coverage.html)
 [![Go Report Card](https://goreportcard.com/badge/siherrmann/talker)](http://goreportcard.com/report/siherrmann/talker)
 
 A fast, OpenAI-compatible Chat Completion API wrapping local LLM inference using [hugot](https://github.com/knights-analytics/hugot).
