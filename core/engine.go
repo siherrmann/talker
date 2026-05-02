@@ -163,6 +163,7 @@ func (e *HugotEngine) Close() error {
 type MockEngine struct {
 	Responses []string
 	Err       error
+	StreamErr error
 }
 
 func (m *MockEngine) ExtractEmbeddings(ctx context.Context, input []string) ([][]float32, error) {
@@ -211,6 +212,11 @@ func (m *MockEngine) GenerateStream(ctx context.Context, prompt string, maxToken
 			if len(m.Responses) > 1 {
 				m.Responses = m.Responses[1:]
 			}
+		}
+
+		if m.StreamErr != nil {
+			errChan <- m.StreamErr
+			return
 		}
 
 		words := strings.Split(response, " ")

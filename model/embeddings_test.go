@@ -54,4 +54,12 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		
 		assert.Error(t, err)
 	})
+
+	t.Run("InvalidJSONObject", func(t *testing.T) {
+		jsonData := []byte(`[1, 2, 3]`) // Array instead of object
+		var req EmbeddingRequest
+		err := json.Unmarshal(jsonData, &req)
+		
+		assert.Error(t, err)
+	})
 }

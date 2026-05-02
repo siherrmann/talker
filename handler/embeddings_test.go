@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -76,5 +77,37 @@ func TestEmbeddings(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Input cannot be empty")
+	})
+
+	t.Run("BindError", func(t *testing.T) {
+		reqBody := []byte(`{ invalid json }`)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/embeddings", bytes.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Invalid request payload")
+	})
+
+	t.Run("ExtractEmbeddingsError", func(t *testing.T) {
+		mockEngine.Err = errors.New("mock embedding error")
+		defer func() { mockEngine.Err = nil }()
+
+		reqBody := []byte(`{
+			"model": "text-embedding-ada-002",
+			"input": ["Fail me"]
+		}`)
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/embeddings", bytes.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to extract embeddings")
 	})
 }

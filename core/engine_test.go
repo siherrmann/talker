@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -185,5 +186,27 @@ func TestNewHugotEngine_InvalidEmbeddingModel(t *testing.T) {
 	tmpDir := t.TempDir()
 	
 	_, err := NewHugotEngine(tmpDir, "", "invalid/model/path/that/fails")
+	assert.Error(t, err)
+}
+
+func TestNewHugotEngine_CorruptSpeechModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Create an empty directory with the model name to fake its existence and skip downloading.
+	// This will cause NewPipeline to fail when it tries to load ONNX files.
+	modelName := "corrupt-model"
+	require.NoError(t, os.MkdirAll(tmpDir+"/"+modelName, 0755))
+
+	_, err := NewHugotEngine(tmpDir, modelName, "")
+	assert.Error(t, err)
+}
+
+func TestNewHugotEngine_CorruptEmbeddingModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	modelName := "corrupt-model"
+	require.NoError(t, os.MkdirAll(tmpDir+"/"+modelName, 0755))
+
+	_, err := NewHugotEngine(tmpDir, "", modelName)
 	assert.Error(t, err)
 }
