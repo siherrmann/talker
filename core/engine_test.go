@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knights-analytics/hugot/pipelines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -116,5 +117,73 @@ func TestNewHugotEngine_InvalidPath(t *testing.T) {
 	// Attempt to create HugotEngine with an invalid path (permission denied typically) to force error
 	// For testing purposes, we use a root directory we can't write to.
 	_, err := NewHugotEngine("/root/forbidden_dir_test", "", "")
+	assert.Error(t, err)
+}
+
+func TestHugotEngine_Generate_NilPipeline(t *testing.T) {
+	e := &HugotEngine{}
+	_, err := e.Generate(context.Background(), "test", 10)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not initialized")
+}
+
+func TestHugotEngine_Generate_DummyPipeline(t *testing.T) {
+	e := &HugotEngine{
+		pipeline: &pipelines.TextGenerationPipeline{},
+	}
+	defer func() { _ = recover() }()
+	// Call Generate with negative tokens to hit maxTokens fallback
+	_, _ = e.Generate(context.Background(), "test", -1)
+}
+
+func TestHugotEngine_GenerateStream_NilPipeline(t *testing.T) {
+	e := &HugotEngine{}
+	_, _, err := e.GenerateStream(context.Background(), "test", 10)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not initialized")
+}
+
+func TestHugotEngine_GenerateStream_DummyPipeline(t *testing.T) {
+	e := &HugotEngine{
+		pipeline: &pipelines.TextGenerationPipeline{},
+	}
+	defer func() { _ = recover() }()
+	_, _, _ = e.GenerateStream(context.Background(), "test", 0)
+}
+
+func TestHugotEngine_ExtractEmbeddings_NilPipeline(t *testing.T) {
+	e := &HugotEngine{}
+	_, err := e.ExtractEmbeddings(context.Background(), []string{"test"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not initialized")
+}
+
+func TestHugotEngine_ExtractEmbeddings_DummyPipeline(t *testing.T) {
+	e := &HugotEngine{
+		embeddingPipeline: &pipelines.FeatureExtractionPipeline{},
+	}
+	defer func() { _ = recover() }()
+	_, _ = e.ExtractEmbeddings(context.Background(), []string{"test"})
+}
+
+func TestHugotEngine_Close(t *testing.T) {
+	e := &HugotEngine{}
+	err := e.Close()
+	assert.NoError(t, err) // nil session should not error
+}
+
+func TestNewHugotEngine_InvalidSpeechModel(t *testing.T) {
+	// Use a valid temp dir so MkdirAll succeeds
+	tmpDir := t.TempDir()
+	
+	// Pass an invalid model ID so DownloadModel fails
+	_, err := NewHugotEngine(tmpDir, "invalid/model/path/that/fails", "")
+	assert.Error(t, err)
+}
+
+func TestNewHugotEngine_InvalidEmbeddingModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	_, err := NewHugotEngine(tmpDir, "", "invalid/model/path/that/fails")
 	assert.Error(t, err)
 }
