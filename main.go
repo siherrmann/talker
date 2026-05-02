@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/labstack/echo/v5"
@@ -15,18 +15,19 @@ func main() {
 	modelFolder := os.Getenv("MODEL_FOLDER")
 	speechModel := os.Getenv("CHAT_MODEL")
 	embeddingModel := os.Getenv("EMBEDDING_MODEL")
-
+	
 	var engine core.Engine
 	var err error
 
 	if modelFolder == "" || (speechModel == "" && embeddingModel == "") {
-		log.Println("WARNING: MODEL_FOLDER or model names not fully set, using MockEngine for testing.")
+		slog.Warn("MODEL_FOLDER or model names not fully set, using MockEngine for testing.")
 		engine = &core.MockEngine{}
 	} else {
-		log.Printf("Initializing Hugot engine with speech model: %s, embedding model: %s in folder: %s", speechModel, embeddingModel, modelFolder)
+		slog.Info("Initializing Hugot engine", "speech_model", speechModel, "embedding_model", embeddingModel, "folder", modelFolder)
 		engine, err = core.NewHugotEngine(modelFolder, speechModel, embeddingModel)
 		if err != nil {
-			log.Fatalf("Failed to initialize Hugot Engine: %v", err)
+			slog.Error("Failed to initialize Hugot Engine", "error", err)
+			os.Exit(1)
 		}
 	}
 	defer engine.Close()
@@ -51,8 +52,9 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Starting Talker API on port %s", port)
+	slog.Info("Starting Talker API", "port", port)
 	if err := e.Start(":" + port); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
 	}
 }

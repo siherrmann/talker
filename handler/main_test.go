@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 	err := mockEngine.Close()
 	if err != nil {
-		log.Printf("Failed to close mock engine: %v", err)
+		slog.Error("Failed to close mock engine", "error", err)
 	}
 
 	os.Exit(exitCode)

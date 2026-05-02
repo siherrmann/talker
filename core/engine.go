@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ type HugotEngine struct {
 }
 
 func NewHugotEngine(modelFolder string, speechModel string, embeddingModel string) (*HugotEngine, error) {
-	if err := os.MkdirAll(modelFolder, 0755); err != nil {
+	if err := os.MkdirAll(modelFolder, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create model folder: %w", err)
 	}
 
@@ -42,7 +43,7 @@ func NewHugotEngine(modelFolder string, speechModel string, embeddingModel strin
 	if speechModel != "" {
 		localPath := filepath.Join(modelFolder, speechModel)
 		if _, err := os.Stat(localPath); os.IsNotExist(err) {
-			fmt.Printf("Downloading model %s to %s...\n", speechModel, modelFolder)
+			slog.Info("Downloading model", "model", speechModel, "folder", modelFolder)
 			if _, err := hugot.DownloadModel(ctx, speechModel, modelFolder, opts); err != nil {
 				return nil, fmt.Errorf("failed to download speech model: %w", err)
 			}
@@ -61,7 +62,7 @@ func NewHugotEngine(modelFolder string, speechModel string, embeddingModel strin
 	if embeddingModel != "" {
 		localPath := filepath.Join(modelFolder, embeddingModel)
 		if _, err := os.Stat(localPath); os.IsNotExist(err) {
-			fmt.Printf("Downloading model %s to %s...\n", embeddingModel, modelFolder)
+			slog.Info("Downloading model", "model", embeddingModel, "folder", modelFolder)
 			if _, err := hugot.DownloadModel(ctx, embeddingModel, modelFolder, opts); err != nil {
 				return nil, fmt.Errorf("failed to download embedding model: %w", err)
 			}

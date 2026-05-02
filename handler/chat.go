@@ -91,7 +91,9 @@ func (h *ChatHandler) handleStreaming(c *echo.Context, req model.ChatCompletionR
 				if err := streamChunk(c, chunk); err != nil {
 					return err
 				}
-				c.Response().Write([]byte("data: [DONE]\n\n"))
+				if _, err := c.Response().Write([]byte("data: [DONE]\n\n")); err != nil {
+					return err
+				}
 				if flusher, ok := c.Response().(http.Flusher); ok {
 					flusher.Flush()
 				}
