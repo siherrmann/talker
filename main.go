@@ -4,10 +4,14 @@ import (
 	"log/slog"
 	"os"
 
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/siherrmann/talker/core"
 	"github.com/siherrmann/talker/handler"
+	"github.com/siherrmann/talker/metrics"
 )
 
 func run() error {
@@ -15,7 +19,7 @@ func run() error {
 	modelFolder := os.Getenv("MODEL_FOLDER")
 	speechModel := os.Getenv("CHAT_MODEL")
 	embeddingModel := os.Getenv("EMBEDDING_MODEL")
-	
+
 	var engine core.Engine
 	var err error
 
@@ -40,6 +44,7 @@ func run() error {
 
 	// Middleware
 	e.Use(middleware.Recover())
+	e.Use(metrics.PrometheusMiddleware())
 
 	// Register Routes
 	e.POST("/v1/chat/completions", chatHandler.ChatCompletions)
@@ -49,6 +54,19 @@ func run() error {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort != "" {
+		go func() {
+			slog.Info("Starting Prometheus Metrics Server", "port", metricsPort)
+			http.Handle("/metrics", promhttp.Handler())
+			if err := http.ListenAndServe(":"+metricsPort, nil); err != nil {
+				slog.Error("Metrics server failed", "error", err)
+			}
+		}()
+	} else {
+		slog.Info("METRICS_PORT not set, skipping Prometheus metrics server")
 	}
 
 	slog.Info("Starting Talker API", "port", port)

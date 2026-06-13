@@ -12,7 +12,7 @@ import (
 
 func TestRunFunc(t *testing.T) {
 	// Setup environment
-	os.Setenv("PORT", "18081") // Use a specific port to test
+	os.Setenv("PORT", "18081")    // Use a specific port to test
 	os.Setenv("MODEL_FOLDER", "") // Forces mock engine
 
 	// Run the app in a goroutine
@@ -34,7 +34,7 @@ func TestRunFunc(t *testing.T) {
 
 func TestRunFunc_DefaultPort(t *testing.T) {
 	// Setup environment
-	os.Setenv("PORT", "") // Force default port 8080
+	os.Setenv("PORT", "")         // Force default port 8080
 	os.Setenv("MODEL_FOLDER", "") // Forces mock engine
 
 	// Run the app in a goroutine
@@ -58,7 +58,7 @@ func TestRunFunc_Error(t *testing.T) {
 	// Setup environment to force Hugot error by giving an invalid model folder
 	os.Setenv("MODEL_FOLDER", "/root/invalid_permissions")
 	os.Setenv("CHAT_MODEL", "test-model")
-	
+
 	err := run()
 	assert.Error(t, err)
 }
@@ -74,6 +74,6 @@ func TestMain_Exit(t *testing.T) {
 	cmd := exec.Command(os.Args[0], "-test.run=TestMain_Exit")
 	cmd.Env = append(os.Environ(), "TEST_MAIN_EXIT=1")
 	err := cmd.Run()
-	
+
 	assert.Error(t, err)
 }

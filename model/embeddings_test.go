@@ -13,7 +13,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`{"model": "test-model", "input": "hello world"}`)
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		require.NoError(t, err)
 		assert.Equal(t, "test-model", req.Model)
 		assert.Equal(t, []string{"hello world"}, req.Input)
@@ -23,7 +23,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`{"model": "test-model", "input": ["hello", "world"]}`)
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		require.NoError(t, err)
 		assert.Equal(t, "test-model", req.Model)
 		assert.Equal(t, []string{"hello", "world"}, req.Input)
@@ -33,7 +33,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`{"model": "test-model", "input": 123}`)
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "input must be a string or an array of strings")
 	})
@@ -42,7 +42,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`{"model": "test-model"}`)
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "input is required")
 	})
@@ -51,7 +51,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`{"model": "test-model", "input": }`)
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		assert.Error(t, err)
 	})
 
@@ -59,7 +59,7 @@ func TestEmbeddingRequest_UnmarshalJSON(t *testing.T) {
 		jsonData := []byte(`[1, 2, 3]`) // Array instead of object
 		var req EmbeddingRequest
 		err := json.Unmarshal(jsonData, &req)
-		
+
 		assert.Error(t, err)
 	})
 }

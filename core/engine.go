@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knights-analytics/hugot"
+	"github.com/knights-analytics/hugot/backends"
 	"github.com/knights-analytics/hugot/pipelines"
 )
 
@@ -17,6 +18,7 @@ type Engine interface {
 	Generate(ctx context.Context, prompt string, maxTokens int) (string, error)
 	GenerateStream(ctx context.Context, prompt string, maxTokens int) (chan string, chan error, error)
 	ExtractEmbeddings(ctx context.Context, input []string) ([][]float32, error)
+	CountTokens(text string, isEmbedding bool) (int, error)
 	Close() error
 }
 
@@ -150,6 +152,27 @@ func (e *HugotEngine) ExtractEmbeddings(ctx context.Context, input []string) ([]
 	return result.Embeddings, nil
 }
 
+func (e *HugotEngine) CountTokens(text string, isEmbedding bool) (int, error) {
+	var tok *backends.Tokenizer
+	if isEmbedding {
+		if e.embeddingPipeline != nil && e.embeddingPipeline.GetModel() != nil {
+			tok = e.embeddingPipeline.GetModel().Tokenizer
+		}
+	} else {
+		if e.pipeline != nil && e.pipeline.GetModel() != nil {
+			tok = e.pipeline.GetModel().Tokenizer
+		}
+	}
+
+	if tok == nil || tok.GoTokenizer == nil || tok.GoTokenizer.Tokenizer == nil {
+		// Fallback if tokenizer isn't loaded or isn't a GoTokenizer
+		return len(strings.Fields(text)), nil
+	}
+
+	ids := tok.GoTokenizer.Tokenizer.Encode(text)
+	return len(ids), nil
+}
+
 func (e *HugotEngine) Close() error {
 	if e.session != nil {
 		err := e.session.Destroy()
@@ -164,6 +187,10 @@ type MockEngine struct {
 	Responses []string
 	Err       error
 	StreamErr error
+}
+
+func (m *MockEngine) CountTokens(text string, isEmbedding bool) (int, error) {
+	return len(strings.Fields(text)), nil
 }
 
 func (m *MockEngine) ExtractEmbeddings(ctx context.Context, input []string) ([][]float32, error) {

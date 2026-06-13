@@ -174,8 +174,8 @@ func TestChatCompletions(t *testing.T) {
 		defer func() { mockEngine.Err = nil }()
 
 		reqBody := model.ChatCompletionRequest{
-			Model: "test-model",
-			Messages: []model.ChatMessage{{Role: "user", Content: "Hello!"}},
+			Model:          "test-model",
+			Messages:       []model.ChatMessage{{Role: "user", Content: "Hello!"}},
 			ResponseFormat: &model.ResponseFormat{Type: "json_object"},
 		}
 
@@ -222,9 +222,9 @@ func TestChatCompletions(t *testing.T) {
 		defer func() { mockEngine.StreamErr = nil }()
 
 		reqBody := model.ChatCompletionRequest{
-			Model: "test-model",
+			Model:    "test-model",
 			Messages: []model.ChatMessage{{Role: "user", Content: "Stream error"}},
-			Stream: true,
+			Stream:   true,
 		}
 
 		bodyBytes, err := json.Marshal(reqBody)
@@ -236,7 +236,7 @@ func TestChatCompletions(t *testing.T) {
 
 		e.ServeHTTP(rec, req)
 
-		// The stream has already started, so the status code is 200, 
+		// The stream has already started, so the status code is 200,
 		// The stream error bubbles up, so the status code becomes 500
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
@@ -286,7 +286,7 @@ func TestChatCompletions(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		// Cancel the request context to trigger the Done() path in the stream loop
 		ctx, cancel := context.WithCancel(req.Context())
 		req = req.WithContext(ctx)
@@ -310,17 +310,17 @@ func (e *errorRecorder) Write(buf []byte) (int, error) {
 
 func TestChatCompletions_StreamWriteError(t *testing.T) {
 	reqBody := model.ChatCompletionRequest{
-		Model: "test-model",
+		Model:    "test-model",
 		Messages: []model.ChatMessage{{Role: "user", Content: "Stream this"}},
-		Stream: true,
+		Stream:   true,
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	rec := &errorRecorder{httptest.NewRecorder()}
-	
+
 	e := echo.New()
 	handler := NewChatHandler(&core.MockEngine{})
 	e.POST("/v1/chat/completions", handler.ChatCompletions)

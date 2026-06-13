@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/siherrmann/talker/core"
+	"github.com/siherrmann/talker/metrics"
 	"github.com/siherrmann/talker/model"
 	"github.com/siherrmann/validator"
 )
@@ -38,7 +39,10 @@ func (h *ChatHandler) ChatCompletions(c *echo.Context) error {
 	// Format messages into a simple prompt template
 	var promptBuilder strings.Builder
 	for _, msg := range req.Messages {
-		promptBuilder.WriteString(msg.Role + ": " + msg.Content + "\n")
+		promptBuilder.WriteString(msg.Role)
+		promptBuilder.WriteString(": ")
+		promptBuilder.WriteString(msg.Content)
+		promptBuilder.WriteString("\n")
 	}
 	promptBuilder.WriteString("assistant: ")
 
@@ -100,6 +104,10 @@ func (h *ChatHandler) handleStreaming(c *echo.Context, req model.ChatCompletionR
 				return nil
 			}
 
+			// Record token consumption for streaming
+			labels := metrics.ExtractLabels(c, req.Model)
+			metrics.TokensConsumedTotal.WithLabelValues(labels...).Add(1)
+
 			chunk := model.ChatCompletionChunkResponse{
 				ID:      id,
 				Object:  "chat.completion.chunk",
@@ -152,8 +160,12 @@ func (h *ChatHandler) handleNonStreaming(c *echo.Context, req model.ChatCompleti
 		}
 	}
 
-	promptTokens := len(strings.Fields(prompt))
-	completionTokens := len(strings.Fields(output))
+	promptTokens, _ := h.Engine.CountTokens(prompt, false)
+	completionTokens, _ := h.Engine.CountTokens(output, false)
+
+	// Record total tokens for non-streaming
+	labels := metrics.ExtractLabels(c, req.Model)
+	metrics.TokensConsumedTotal.WithLabelValues(labels...).Add(float64(promptTokens + completionTokens))
 
 	resp := model.ChatCompletionResponse{
 		ID:      "chatcmpl-" + uuid.New().String(),

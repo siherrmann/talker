@@ -26,15 +26,15 @@ func TestMockEngine_Generate(t *testing.T) {
 		m := &MockEngine{
 			Responses: []string{"resp1", "resp2"},
 		}
-		
+
 		resp, err := m.Generate(context.Background(), "hello", 10)
 		require.NoError(t, err)
 		assert.Equal(t, "resp1", resp)
-		
+
 		resp2, err := m.Generate(context.Background(), "hello", 10)
 		require.NoError(t, err)
 		assert.Equal(t, "resp2", resp2)
-		
+
 		resp3, err := m.Generate(context.Background(), "hello", 10)
 		require.NoError(t, err)
 		assert.Equal(t, "resp2", resp3)
@@ -44,7 +44,7 @@ func TestMockEngine_Generate(t *testing.T) {
 		m := &MockEngine{
 			Err: errMock,
 		}
-		
+
 		_, err := m.Generate(context.Background(), "hello", 10)
 		assert.Error(t, err)
 		assert.Equal(t, errMock, err)
@@ -56,10 +56,10 @@ func TestMockEngine_GenerateStream(t *testing.T) {
 		m := &MockEngine{}
 		tokenChan, errChan, err := m.GenerateStream(context.Background(), "hello", 10)
 		require.NoError(t, err)
-		
+
 		var tokens []string
 		done := false
-		
+
 		for !done {
 			select {
 			case token, ok := <-tokenChan:
@@ -76,7 +76,7 @@ func TestMockEngine_GenerateStream(t *testing.T) {
 				t.Fatal("timeout waiting for stream")
 			}
 		}
-		
+
 		expectedTokens := []string{"This", " ", "is", " ", "a", " ", "mock", " ", "response", " ", "to:", " ", "hello"}
 		assert.Equal(t, expectedTokens, tokens)
 	})
@@ -176,7 +176,7 @@ func TestHugotEngine_Close(t *testing.T) {
 func TestNewHugotEngine_InvalidSpeechModel(t *testing.T) {
 	// Use a valid temp dir so MkdirAll succeeds
 	tmpDir := t.TempDir()
-	
+
 	// Pass an invalid model ID so DownloadModel fails
 	_, err := NewHugotEngine(tmpDir, "invalid/model/path/that/fails", "")
 	assert.Error(t, err)
@@ -184,14 +184,14 @@ func TestNewHugotEngine_InvalidSpeechModel(t *testing.T) {
 
 func TestNewHugotEngine_InvalidEmbeddingModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	_, err := NewHugotEngine(tmpDir, "", "invalid/model/path/that/fails")
 	assert.Error(t, err)
 }
 
 func TestNewHugotEngine_CorruptSpeechModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create an empty directory with the model name to fake its existence and skip downloading.
 	// This will cause NewPipeline to fail when it tries to load ONNX files.
 	modelName := "corrupt-model"
@@ -203,7 +203,7 @@ func TestNewHugotEngine_CorruptSpeechModel(t *testing.T) {
 
 func TestNewHugotEngine_CorruptEmbeddingModel(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	modelName := "corrupt-model"
 	require.NoError(t, os.MkdirAll(tmpDir+"/"+modelName, 0755))
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/siherrmann/talker/core"
+	"github.com/siherrmann/talker/metrics"
 	"github.com/siherrmann/talker/model"
 )
 
@@ -42,11 +43,15 @@ func (h *EmbeddingsHandler) Embeddings(c *echo.Context) error {
 		}
 	}
 
-	// Calculate rough usage, in a real scenario you would count actual tokens
+	// Calculate exact usage using tokenizers
 	promptTokens := 0
 	for _, text := range req.Input {
-		promptTokens += len(text) / 4 // Rough character-to-token heuristic
+		count, _ := h.Engine.CountTokens(text, true)
+		promptTokens += count
 	}
+
+	labels := metrics.ExtractLabels(c, req.Model)
+	metrics.TokensConsumedTotal.WithLabelValues(labels...).Add(float64(promptTokens))
 
 	resp := model.EmbeddingResponse{
 		Object: "list",
