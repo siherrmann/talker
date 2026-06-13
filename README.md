@@ -56,6 +56,7 @@ MODEL_FOLDER=./models                        # Required for auto-download: The b
 CHAT_MODEL=HuggingFaceTB/SmolLM-135M-Instruct # Optional: The Hugging Face repo name for the text generation model.
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5        # Optional: The Hugging Face repo name for the embeddings model.
 PORT=8080                                    # Optional: Sets the port for the Echo server (default is 8080).
+METRICS_PORT=9090                            # Optional: Sets the port for the Prometheus metrics server. If not set, the metrics server is disabled.
 ```
 
 If neither `CHAT_MODEL` nor `EMBEDDING_MODEL` is provided, the mock engine is used.
@@ -75,6 +76,13 @@ If neither `CHAT_MODEL` nor `EMBEDDING_MODEL` is provided, the mock engine is us
 - **Request/Response Models**: Fully conforms to the standard OpenAI request and response schemas.
 - **SSE Streaming**: Fully supports Server-Sent Events for real-time streaming when `stream: true` is passed.
 - **Strict JSON Enforcement**: Supports `response_format: {"type": "json_object"}` with automatic struct validation via `github.com/siherrmann/validator`. If the LLM generates invalid JSON, the engine automatically retries up to 3 times, passing the validation errors back to the model as a prompt.
+
+### Prometheus Telemetry
+
+- **Native Prometheus Integration**: Exposes standard Prometheus metrics on a dedicated internal port (e.g., `:9090/metrics`) when `METRICS_PORT` is configured.
+- **Tracked Metrics**: Includes standard counters and histograms for request duration (`talker_request_duration_seconds`), total requests (`talker_requests_total`), and exact tokens consumed (`talker_tokens_consumed_total`).
+- **Billing Attributes**: Automatically extracts billing and tenant labels (`project_id`, `org_id`, `user_id`) from HTTP headers (`X-Project-Id`, `X-Org-Id`, `X-User-Id`) for detailed usage tracking per tenant.
+- **Exact Token Counting**: Token consumption is accurately measured directly from the native `hugot` internal tokenization pipelines instead of relying on rough character-based heuristics.
 
 ### Robust Architecture
 

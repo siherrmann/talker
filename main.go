@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -61,7 +62,15 @@ func run() error {
 		go func() {
 			slog.Info("Starting Prometheus Metrics Server", "port", metricsPort)
 			http.Handle("/metrics", promhttp.Handler())
-			if err := http.ListenAndServe(":"+metricsPort, nil); err != nil {
+			
+			server := &http.Server{
+				Addr:              ":" + metricsPort,
+				ReadHeaderTimeout: 5 * time.Second,
+				ReadTimeout:       10 * time.Second,
+				WriteTimeout:      10 * time.Second,
+			}
+			
+			if err := server.ListenAndServe(); err != nil {
 				slog.Error("Metrics server failed", "error", err)
 			}
 		}()
