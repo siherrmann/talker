@@ -116,11 +116,11 @@ func TestMockEngine_Close(t *testing.T) {
 
 func TestMockEngine_CountTokens(t *testing.T) {
 	m := &MockEngine{}
-	
+
 	count, err := m.CountTokens("hello world test", false)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, count)
-	
+
 	countEmb, err := m.CountTokens("one two", true)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, countEmb)
@@ -225,11 +225,11 @@ func TestNewHugotEngine_CorruptEmbeddingModel(t *testing.T) {
 
 func TestHugotEngine_CountTokens_NilPipeline(t *testing.T) {
 	e := &HugotEngine{}
-	
+
 	count, err := e.CountTokens("test", false)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count) // len(strings.Fields("test"))
-	
+
 	countEmb, err := e.CountTokens("test", true)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, countEmb) // len(strings.Fields("test"))
@@ -237,7 +237,7 @@ func TestHugotEngine_CountTokens_NilPipeline(t *testing.T) {
 
 func TestHugotEngine_CountTokens_DummyPipeline(t *testing.T) {
 	e := &HugotEngine{
-		pipeline: &pipelines.TextGenerationPipeline{},
+		pipeline:          &pipelines.TextGenerationPipeline{},
 		embeddingPipeline: &pipelines.FeatureExtractionPipeline{},
 	}
 	defer func() { _ = recover() }()
