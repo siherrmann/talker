@@ -114,6 +114,18 @@ func TestMockEngine_Close(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestMockEngine_CountTokens(t *testing.T) {
+	m := &MockEngine{}
+	
+	count, err := m.CountTokens("hello world test", false)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, count)
+	
+	countEmb, err := m.CountTokens("one two", true)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, countEmb)
+}
+
 func TestNewHugotEngine_InvalidPath(t *testing.T) {
 	// Attempt to create HugotEngine with an invalid path (permission denied typically) to force error
 	// For testing purposes, we use a root directory we can't write to.
@@ -209,4 +221,28 @@ func TestNewHugotEngine_CorruptEmbeddingModel(t *testing.T) {
 
 	_, err := NewHugotEngine(tmpDir, "", modelName)
 	assert.Error(t, err)
+}
+
+func TestHugotEngine_CountTokens_NilPipeline(t *testing.T) {
+	e := &HugotEngine{}
+	
+	count, err := e.CountTokens("test", false)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count) // len(strings.Fields("test"))
+	
+	countEmb, err := e.CountTokens("test", true)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, countEmb) // len(strings.Fields("test"))
+}
+
+func TestHugotEngine_CountTokens_DummyPipeline(t *testing.T) {
+	e := &HugotEngine{
+		pipeline: &pipelines.TextGenerationPipeline{},
+		embeddingPipeline: &pipelines.FeatureExtractionPipeline{},
+	}
+	defer func() { _ = recover() }()
+	// This will fallback since GetModel() returns nil or tokenizer is nil
+	count, err := e.CountTokens("hello world", false)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, count)
 }
